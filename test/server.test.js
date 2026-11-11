@@ -394,3 +394,29 @@ test('writes reject missing or invalid nested post ids and retain requestId for 
     }
   }
 });
+
+test('deliver_result rejects blank body before HTTP', async t => {
+  const { rpc, server } = await setup(t, () => {});
+  await saved(server.config, server.url);
+  const result = await rpc.request('tools/call', { name: 'deliver_result', arguments: { parentId: 'task-1', body: '   ' } });
+  assert.match(errorText(result), /non-blank/i);
+  assert.equal(server.calls.length, 0);
+});
+
+test('ask_question rejects blank body before HTTP', async t => {
+  const { rpc, server } = await setup(t, () => {});
+  await saved(server.config, server.url);
+  const result = await rpc.request('tools/call', { name: 'ask_question', arguments: { parentId: 'task-1', body: '\t\n  ' } });
+  assert.match(errorText(result), /non-blank/i);
+  assert.equal(server.calls.length, 0);
+});
+
+test('deliver_result accepts non-blank body', async t => {
+  const { rpc, server } = await setup(t, (req, res) => {
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ post: { id: 'post-1' } }));
+  });
+  await saved(server.config, server.url);
+  const result = await rpc.request('tools/call', { name: 'deliver_result', arguments: { parentId: 'task-1', body: '  real work  ' } });
+  assert.equal(server.calls.length, 1);
+});
